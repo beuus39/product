@@ -1,13 +1,13 @@
 package rest
 
 import (
-"encoding/json"
+	"encoding/json"
 	"github.com/beuus39/product/internal/app"
 	"github.com/beuus39/product/internal/domain"
 	"github.com/go-chi/chi"
-"log"
-"net/http"
-"strconv"
+	"log"
+	"net/http"
+	"strconv"
 )
 
 type handler struct {

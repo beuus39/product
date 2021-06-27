@@ -1,37 +1,49 @@
 package config
 
 import (
-	"gopkg.in/yaml.v2"
 	"os"
+	"strconv"
 )
 
+const (
+	MONGO_PREFIX         string = "mongodb://"
+	MONGO_COLLECTION  string = "MONGODB_COLLECTION"
+	MONGO_TIMEOUT     string = "MONGODB_TIMEOUT"
+	MONGO_HOST        string = "MONGODB_HOST"
+	MONGO_PORT        string = "MONGODB_PORT"
+	SERVER_PORT       string = "PRODUCT_SERVER_PORT"
+	GRPC_PORT         string = "PRODUCT_GRPC_PORT"
+)
 type Config struct {
-	Database struct {
-		URL string `yaml:"url"`
-		DB string `yaml:"db"`
-		Timeout int `yaml:"timeout"`
-	} `yaml:"database"`
-	Server struct{
-		Port string `yaml:"port"`
-		Host string `yaml:"host"`
-	}
+	URL        string
+	DB         string
+	Timeout    int
+	ServerPort string
+	GrpcPort   uint
 }
 
-func NewConfig(configFile string) (*Config, error) {
-	file, err := os.Open(configFile)
+func LoadEnv() *Config {
+	mongoHost          := os.Getenv(MONGO_HOST)
+	mongoPort          := os.Getenv(MONGO_PORT)
+	mongoCollection    := os.Getenv(MONGO_COLLECTION)
+	mongoTimeout, _    := strconv.Atoi(os.Getenv(MONGO_TIMEOUT))
+	serverPort         := os.Getenv(SERVER_PORT)
+	grpcPort, _        := strconv.Atoi(os.Getenv(GRPC_PORT))
 
-	if err != nil {
-		return nil, err
+	if mongoPort == "" {
+		mongoPort = "27017"
 	}
 
-	defer file.Close()
-	cfg := &Config{}
-	yd := yaml.NewDecoder(file)
-	err = yd.Decode(cfg)
-
-	if err != nil {
-		return nil, err
+	if mongoHost == "" {
+		mongoHost = "localhost"
 	}
+	mongoUri           := MONGO_PREFIX + mongoHost + ":" + mongoPort
 
-	return cfg, nil
+	return &Config{
+		URL: mongoUri,
+		DB: mongoCollection,
+		Timeout: mongoTimeout,
+		ServerPort: serverPort,
+		GrpcPort: uint(grpcPort),
+	}
 }

@@ -6,22 +6,23 @@ import (
 	"github.com/beuus39/product/internal/config"
 	productGrpcPresenter "github.com/beuus39/product/internal/ports/grpc/handler"
 	productGrpc "github.com/beuus39/product/internal/ports/grpc/server"
-	"github.com/beuus39/product/internal/ports/rest"
+	queue2 "github.com/beuus39/product/internal/ports/queue"
 	"github.com/beuus39/product/internal/repository/product"
-	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
-	"log"
-	"net/http"
+	"github.com/beuus39/product/pkg/nats"
 	"os"
 )
 
-const grpcDefaultPort = 3002
 func main() {
+	natsConf := nats.NatsConfig{
+		Url: "nats://localhost:4222",
+	}
+	productQueue := queue2.NewProductQueue(natsConf)
+
 	fmt.Println("Welcome to codebase")
-	conf, _ := config.NewConfig("C:/Users/ADMIN/go/src/beu.us/codebase/internal/config/config.yaml")
-	repo, _ := product.NewMongoRepository(conf.Database.URL, conf.Database.DB, conf.Database.Timeout)
+	conf := config.LoadEnv()
+	repo, _ := product.NewMongoRepository(conf.URL, conf.DB, conf.Timeout)
 	service := app.NewProductService(repo)
-	handler := rest.NewHandler(service)
+	/*handler := rest.NewHandler(service)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -33,10 +34,10 @@ func main() {
 	r.Post("/products", handler.Post)
 	r.Delete("/products/{code}", handler.Delete)
 	r.Get("/products", handler.GetAll)
-	r.Put("/products", handler.Put)
+	r.Put("/products", handler.Put)*/
 
 	// Start GRPC
-	productGrpcHandler := productGrpcPresenter.NewGrpcProductHandler(service)
+	productGrpcHandler := productGrpcPresenter.NewGrpcProductHandler(service, productQueue)
 	grpcServer, err := productGrpc.NewGrpcServer(productGrpcHandler)
 
 	if err != nil {
@@ -44,10 +45,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = grpcServer.Serve(grpcDefaultPort)
+	err = grpcServer.Serve(conf.GrpcPort)
 	if err != nil {
 		fmt.Printf("Error in Startup: %s", err.Error())
 		os.Exit(1)
 	}
-	log.Fatal(http.ListenAndServe(conf.Server.Port, r))
+	//log.Fatal(http.ListenAndServe(conf.ServerPort, r))
 }

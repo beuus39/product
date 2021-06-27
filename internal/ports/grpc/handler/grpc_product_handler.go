@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/beuus39/product/internal/app"
 	"github.com/beuus39/product/internal/domain"
+	"github.com/beuus39/product/internal/ports/queue"
+	"github.com/beuus39/product/internal/shared/dtos"
 	pb "github.com/beuus39/product/pkg/grpc/product"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
@@ -14,6 +16,7 @@ import (
 
 type GrpcProductHandler struct {
 	service app.Service
+	queue   queue.ProductAmqp
 }
 
 func (h *GrpcProductHandler) FindByCategory(request *pb.ProductQueryRequest, server pb.ProductService_FindByCategoryServer) error {
@@ -21,8 +24,11 @@ func (h *GrpcProductHandler) FindByCategory(request *pb.ProductQueryRequest, ser
 	return nil
 }
 
-func NewGrpcProductHandler(service app.Service) *GrpcProductHandler {
-	return &GrpcProductHandler{service: service}
+func NewGrpcProductHandler(service app.Service, queue queue.ProductAmqp) *GrpcProductHandler {
+	return &GrpcProductHandler{
+		service: service,
+		queue: queue,
+	}
 }
 
 func (h *GrpcProductHandler) FindByID(ctx context.Context, arg *pb.ProductQueryRequest) (*pb.ProductResponse, error)  {
@@ -56,6 +62,12 @@ func (h *GrpcProductHandler) FindByID(ctx context.Context, arg *pb.ProductQueryR
 }
 
 func (h *GrpcProductHandler) FindAll(arg *pb.ProductQueryRequest, stream pb.ProductService_FindAllServer) error  {
+	product := &dtos.ProductDto{
+		ID: 1,
+		Name: "Volleyball",
+	}
+	h.queue.PublishProduct("product", product)
+
 	productResult := <-h.service.FindAllProducts()
 	if productResult.Error != nil {
 		return status.Error(codes.InvalidArgument, productResult.Error.Error())
